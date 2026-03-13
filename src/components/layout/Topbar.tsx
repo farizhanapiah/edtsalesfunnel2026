@@ -12,7 +12,7 @@ interface TopbarProps {
 
 export function Topbar({ title, subtitle, actions, showExport, exportHref }: TopbarProps) {
   return (
-    <div className="h-14 min-h-14 bg-[#0A0A0A] border-b border-white flex items-center
+    <div className="h-14 min-h-14 bg-[#0A0A0A] border-b border-[#2a2a2a] flex items-center
       justify-between px-6 sticky top-0 z-20">
       {/* Left: title */}
       <div className="flex items-center gap-4">
@@ -34,7 +34,7 @@ export function Topbar({ title, subtitle, actions, showExport, exportHref }: Top
             href={exportHref}
             download
             className="flex items-center gap-2 border border-[#333] text-[#8C8C8C]
-              hover:border-white hover:text-white transition-colors px-3 py-2
+              hover:border-[#555] hover:text-white transition-colors px-3 py-2
               label-caps text-[11px]"
           >
             <Download size={12} />

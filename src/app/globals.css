@@ -49,7 +49,7 @@
   --color-mid-grey:       #8C8C8C;
   --color-pure-white:     #FFFFFF;
   --color-edt-surface:    #111111;
-  --color-border:         #FFFFFF;
+  --color-border:         #2a2a2a;
   --color-cta:            #2D2DFF;
   --color-cta-text:       #FFFFFF;
 }
@@ -121,13 +121,13 @@ button:focus-visible, a:focus-visible {
 }
 
 /* Window Chrome */
-.window-chrome        { border: 1px solid #FFFFFF; }
+.window-chrome        { border: 1px solid #2a2a2a; box-shadow: 0 0 20px rgba(45, 45, 255, 0.07), 0 0 50px rgba(45, 45, 255, 0.03) !important; }
 .window-chrome-blue   { border: 1px solid #2D2DFF; }
 .window-chrome-grey   { border: 1px solid #333; }
 
 .window-title-bar {
   background-color: #0A0A0A;
-  border-bottom: 1px solid #FFFFFF;
+  border-bottom: 1px solid #2a2a2a;
   height: 32px; min-height: 32px;
   display: flex; align-items: center;
   padding: 0 12px; gap: 6px; flex-shrink: 0;
@@ -141,7 +141,7 @@ button:focus-visible, a:focus-visible {
 }
 .window-title-bar-surface {
   background-color: #111111;
-  border-bottom: 1px solid #FFFFFF;
+  border-bottom: 1px solid #2a2a2a;
   height: 32px; min-height: 32px;
   display: flex; align-items: center;
   padding: 0 12px; gap: 6px; flex-shrink: 0;
@@ -149,12 +149,12 @@ button:focus-visible, a:focus-visible {
 
 .window-dot {
   width: 8px; height: 8px; min-width: 8px;
-  border: 1px solid rgba(255,255,255,0.45);
+  border: 1px solid rgba(255,255,255,0.18);
   display: inline-block; flex-shrink: 0;
 }
 .window-dot-filled {
   width: 8px; height: 8px; min-width: 8px;
-  background-color: rgba(255,255,255,0.65);
+  background-color: rgba(255,255,255,0.28);
   display: inline-block; flex-shrink: 0;
 }
 
