@@ -1,13 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import { Topbar } from '@/components/layout/Topbar'
 import { KanbanBoard } from '@/components/kanban/KanbanBoard'
 import { FilterBar } from '@/components/filters/FilterBar'
+import { Modal } from '@/components/ui/Modal'
+import { UndoToast } from '@/components/ui/UndoToast'
+import { Button } from '@/components/ui/Button'
 import { useAllDeals } from '@/hooks/useDeals'
-import type { FilterState } from '@/types/app.types'
+import { createClient } from '@/lib/supabase/client'
+import type { Deal, FilterState } from '@/types/app.types'
 import type { StageKey } from '@/lib/constants'
 import { getMonthKey } from '@/lib/utils'
 
@@ -23,9 +27,16 @@ const DEFAULT_FILTERS: Omit<FilterState, 'month'> = {
 export default function BoardPage() {
   const router = useRouter()
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
-  const { deals, loading, updateDealStage } = useAllDeals(filters)
+  const { deals, loading, updateDealStage, deleteDeal, refetch } = useAllDeals(filters)
 
   const month = getMonthKey()
+
+  // Delete confirmation state
+  const [pendingDelete, setPendingDelete] = useState<Deal | null>(null)
+
+  // Undo state
+  const [deletedDeal, setDeletedDeal] = useState<Deal | null>(null)
+  const [showUndo, setShowUndo] = useState(false)
 
   function handleFilterChange(updates: Partial<Omit<FilterState, 'month'>>) {
     setFilters(prev => ({ ...prev, ...updates }))
@@ -34,6 +45,41 @@ export default function BoardPage() {
   function handleStageChange(id: string, stage: StageKey, probability: number) {
     updateDealStage(id, stage, probability)
   }
+
+  function handleDeleteRequest(id: string) {
+    const deal = deals.find(d => d.id === id)
+    if (deal) setPendingDelete(deal)
+  }
+
+  async function handleConfirmDelete() {
+    if (!pendingDelete) return
+    const deal = pendingDelete
+    setPendingDelete(null)
+
+    // Delete the deal
+    await deleteDeal(deal.id)
+
+    // Show undo toast
+    setDeletedDeal(deal)
+    setShowUndo(true)
+  }
+
+  const handleUndo = useCallback(async () => {
+    if (!deletedDeal) return
+    setShowUndo(false)
+
+    // Re-insert the deal
+    const supabase = createClient()
+    const { owner, ...dealData } = deletedDeal
+    await supabase.from('deals').insert(dealData)
+    refetch()
+    setDeletedDeal(null)
+  }, [deletedDeal, refetch])
+
+  const handleUndoDismiss = useCallback(() => {
+    setShowUndo(false)
+    setDeletedDeal(null)
+  }, [])
 
   return (
     <div className="flex flex-col h-full">
@@ -69,9 +115,42 @@ export default function BoardPage() {
             deals={deals}
             onStageChange={handleStageChange}
             onAddDeal={() => router.push('/deals/new')}
+            onDeleteDeal={handleDeleteRequest}
           />
         )}
       </div>
+
+      {/* Delete confirmation modal */}
+      <Modal
+        isOpen={!!pendingDelete}
+        onClose={() => setPendingDelete(null)}
+        title="confirm_delete.exe"
+        size="sm"
+        accent="black"
+      >
+        <div className="p-6 flex flex-col gap-4">
+          <p className="text-white text-sm">
+            Delete <strong>{pendingDelete?.name}</strong>? This action can be undone within 5 seconds.
+          </p>
+          <div className="flex items-center gap-3 justify-end">
+            <Button size="sm" variant="secondary" onClick={() => setPendingDelete(null)}>
+              CANCEL
+            </Button>
+            <Button size="sm" variant="danger" onClick={handleConfirmDelete}>
+              <Trash2 size={12} />
+              DELETE
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Undo toast */}
+      <UndoToast
+        isVisible={showUndo}
+        message={`"${deletedDeal?.name}" deleted`}
+        onUndo={handleUndo}
+        onDismiss={handleUndoDismiss}
+      />
     </div>
   )
 }

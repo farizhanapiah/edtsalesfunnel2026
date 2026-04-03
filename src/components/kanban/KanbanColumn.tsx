@@ -9,12 +9,13 @@ import { STAGES, type StageKey } from '@/lib/constants'
 import type { Deal } from '@/types/app.types'
 
 interface KanbanColumnProps {
-  stage:      StageKey
-  deals:      Deal[]
-  onAddDeal?: () => void
+  stage:          StageKey
+  deals:          Deal[]
+  onAddDeal?:     () => void
+  onDeleteDeal?:  (id: string) => void
 }
 
-export function KanbanColumn({ stage, deals, onAddDeal }: KanbanColumnProps) {
+export function KanbanColumn({ stage, deals, onAddDeal, onDeleteDeal }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: stage })
   const stageConfig = STAGES[stage]
 
@@ -85,7 +86,7 @@ export function KanbanColumn({ stage, deals, onAddDeal }: KanbanColumnProps) {
           strategy={verticalListSortingStrategy}
         >
           {deals.map(deal => (
-            <DealCard key={deal.id} deal={deal} />
+            <DealCard key={deal.id} deal={deal} onDelete={onDeleteDeal ? () => onDeleteDeal(deal.id) : undefined} />
           ))}
         </SortableContext>
 

@@ -21,9 +21,10 @@ interface KanbanBoardProps {
   deals:            Deal[]
   onStageChange:    (id: string, stage: StageKey, probability: number) => void
   onAddDeal?:       () => void
+  onDeleteDeal?:    (id: string) => void
 }
 
-export function KanbanBoard({ deals, onStageChange, onAddDeal }: KanbanBoardProps) {
+export function KanbanBoard({ deals, onStageChange, onAddDeal, onDeleteDeal }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null)
   const router = useRouter()
 
@@ -87,6 +88,7 @@ export function KanbanBoard({ deals, onStageChange, onAddDeal }: KanbanBoardProp
             stage={stage}
             deals={dealsByStage[stage]}
             onAddDeal={stage === 'leads' ? onAddDeal : undefined}
+            onDeleteDeal={onDeleteDeal}
           />
         ))}
       </div>

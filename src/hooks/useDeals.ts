@@ -138,5 +138,12 @@ export function useAllDeals(filters?: Partial<Omit<FilterState, 'month'>>) {
     await supabase.from('deals').update({ stage, probability }).eq('id', id)
   }
 
-  return { deals, loading, refetch: fetchDeals, updateDealStage }
+  async function deleteDeal(id: string) {
+    const supabase = createClient()
+    setDeals(prev => prev.filter(d => d.id !== id))
+    const { error: err } = await supabase.from('deals').delete().eq('id', id)
+    if (err) { fetchDeals() }
+  }
+
+  return { deals, loading, refetch: fetchDeals, updateDealStage, deleteDeal }
 }

@@ -3,18 +3,19 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import Link from 'next/link'
-import { AlertCircle, Clock, CalendarX } from 'lucide-react'
+import { AlertCircle, Clock, CalendarX, Trash2 } from 'lucide-react'
 import { BucketBadge } from '@/components/ui/Badge'
 import { formatRM, formatDateShort, getDaysAgo, isOverdue, isDueSoon } from '@/lib/utils'
 import { STALE_DEAL_DAYS } from '@/lib/constants'
 import type { Deal } from '@/types/app.types'
 
 interface DealCardProps {
-  deal:      Deal
+  deal:       Deal
   isDragging?: boolean
+  onDelete?:  () => void
 }
 
-export function DealCard({ deal, isDragging = false }: DealCardProps) {
+export function DealCard({ deal, isDragging = false, onDelete }: DealCardProps) {
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging: isSortableDragging
   } = useSortable({ id: deal.id })
@@ -49,6 +50,16 @@ export function DealCard({ deal, isDragging = false }: DealCardProps) {
         <span className="label-caps text-[#8C8C8C] text-[10px] ml-2 flex-1 truncate">
           {deal.client_name.toLowerCase()}.deal
         </span>
+        {onDelete && (
+          <button
+            onClick={e => { e.stopPropagation(); e.preventDefault(); onDelete() }}
+            onPointerDown={e => e.stopPropagation()}
+            className="text-[#8C8C8C] hover:text-red-400 transition-colors ml-auto p-0.5 cursor-pointer"
+            title="Delete deal"
+          >
+            <Trash2 size={11} />
+          </button>
+        )}
       </div>
 
       {/* Card body */}
