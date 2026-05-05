@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal'
 import { UndoToast } from '@/components/ui/UndoToast'
 import { Button } from '@/components/ui/Button'
 import { useAllDeals } from '@/hooks/useDeals'
+import { useAuth } from '@/hooks/useAuth'
 import { createClient } from '@/lib/supabase/client'
 import type { Deal, FilterState } from '@/types/app.types'
 import type { StageKey } from '@/lib/constants'
@@ -26,8 +27,10 @@ const DEFAULT_FILTERS: Omit<FilterState, 'month'> = {
 
 export default function BoardPage() {
   const router = useRouter()
+  const { isAdmin } = useAuth()
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const { deals, loading, updateDealStage, deleteDeal, refetch } = useAllDeals(filters)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const month = getMonthKey()
 
@@ -56,10 +59,12 @@ export default function BoardPage() {
     const deal = pendingDelete
     setPendingDelete(null)
 
-    // Delete the deal
-    await deleteDeal(deal.id)
+    const ok = await deleteDeal(deal.id)
+    if (!ok) {
+      setDeleteError(`Could not delete "${deal.name}". You may not have permission, or the request failed.`)
+      return
+    }
 
-    // Show undo toast
     setDeletedDeal(deal)
     setShowUndo(true)
   }
@@ -115,7 +120,7 @@ export default function BoardPage() {
             deals={deals}
             onStageChange={handleStageChange}
             onAddDeal={() => router.push('/deals/new')}
-            onDeleteDeal={handleDeleteRequest}
+            onDeleteDeal={isAdmin ? handleDeleteRequest : undefined}
           />
         )}
       </div>
@@ -151,6 +156,24 @@ export default function BoardPage() {
         onUndo={handleUndo}
         onDismiss={handleUndoDismiss}
       />
+
+      {/* Delete error modal */}
+      <Modal
+        isOpen={!!deleteError}
+        onClose={() => setDeleteError(null)}
+        title="delete_failed.exe"
+        size="sm"
+        accent="black"
+      >
+        <div className="p-6 flex flex-col gap-4">
+          <p className="text-white text-sm">{deleteError}</p>
+          <div className="flex items-center justify-end">
+            <Button size="sm" variant="secondary" onClick={() => setDeleteError(null)}>
+              OK
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

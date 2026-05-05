@@ -82,11 +82,23 @@ export function useDeals(filters?: Partial<FilterState>) {
     }
   }
 
-  async function deleteDeal(id: string) {
-    const supabase = createClient()
+  async function deleteDeal(id: string): Promise<boolean> {
+    const snapshot = deals
     setDeals(prev => prev.filter(d => d.id !== id))
-    const { error: err } = await supabase.from('deals').delete().eq('id', id)
-    if (err) { setError(err.message); fetchDeals() }
+    try {
+      const res = await fetch(`/api/deals/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        setError(body?.error ?? `Delete failed (${res.status})`)
+        setDeals(snapshot)
+        return false
+      }
+      return true
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Delete failed')
+      setDeals(snapshot)
+      return false
+    }
   }
 
   return { deals, loading, error, refetch: fetchDeals, updateDealStage, deleteDeal }
@@ -138,11 +150,20 @@ export function useAllDeals(filters?: Partial<Omit<FilterState, 'month'>>) {
     await supabase.from('deals').update({ stage, probability }).eq('id', id)
   }
 
-  async function deleteDeal(id: string) {
-    const supabase = createClient()
+  async function deleteDeal(id: string): Promise<boolean> {
+    const snapshot = deals
     setDeals(prev => prev.filter(d => d.id !== id))
-    const { error: err } = await supabase.from('deals').delete().eq('id', id)
-    if (err) { fetchDeals() }
+    try {
+      const res = await fetch(`/api/deals/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        setDeals(snapshot)
+        return false
+      }
+      return true
+    } catch {
+      setDeals(snapshot)
+      return false
+    }
   }
 
   return { deals, loading, refetch: fetchDeals, updateDealStage, deleteDeal }
