@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2 } from 'lucide-react'
 import { Topbar } from '@/components/layout/Topbar'
@@ -10,8 +10,6 @@ import { Modal } from '@/components/ui/Modal'
 import { UndoToast } from '@/components/ui/UndoToast'
 import { Button } from '@/components/ui/Button'
 import { useAllDeals } from '@/hooks/useDeals'
-import { useAuth } from '@/hooks/useAuth'
-import { createClient } from '@/lib/supabase/client'
 import type { Deal, FilterState } from '@/types/app.types'
 import type { StageKey } from '@/lib/constants'
 import { getMonthKey } from '@/lib/utils'
@@ -27,19 +25,50 @@ const DEFAULT_FILTERS: Omit<FilterState, 'month'> = {
 
 export default function BoardPage() {
   const router = useRouter()
-  const { isAdmin } = useAuth()
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const { deals, loading, updateDealStage, deleteDeal, refetch } = useAllDeals(filters)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const month = getMonthKey()
 
-  // Delete confirmation state
   const [pendingDelete, setPendingDelete] = useState<Deal | null>(null)
+  const [pendingUndo, setPendingUndo]     = useState<Deal | null>(null)
+  const [hiddenIds, setHiddenIds]         = useState<Set<string>>(new Set())
 
-  // Undo state
-  const [deletedDeal, setDeletedDeal] = useState<Deal | null>(null)
-  const [showUndo, setShowUndo] = useState(false)
+  // Refs let the dismiss/undo callbacks stay stable so UndoToast's
+  // countdown interval isn't torn down on every re-render.
+  const pendingUndoRef = useRef<Deal | null>(null)
+  const deleteDealRef  = useRef(deleteDeal)
+  const refetchRef     = useRef(refetch)
+  deleteDealRef.current = deleteDeal
+  refetchRef.current    = refetch
+
+  const visibleDeals = useMemo(
+    () => deals.filter(d => !hiddenIds.has(d.id)),
+    [deals, hiddenIds]
+  )
+
+  const removeHidden = useCallback((id: string) => {
+    setHiddenIds(prev => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
+  }, [])
+
+  const commitDelete = useCallback(async (deal: Deal) => {
+    const ok = await deleteDealRef.current(deal.id)
+    if (!ok) {
+      removeHidden(deal.id)
+      setDeleteError(
+        `Could not delete "${deal.name}". You may not have permission, or the request failed.`
+      )
+      return
+    }
+    refetchRef.current()
+    removeHidden(deal.id)
+  }, [removeHidden])
 
   function handleFilterChange(updates: Partial<Omit<FilterState, 'month'>>) {
     setFilters(prev => ({ ...prev, ...updates }))
@@ -54,37 +83,36 @@ export default function BoardPage() {
     if (deal) setPendingDelete(deal)
   }
 
-  async function handleConfirmDelete() {
+  function handleConfirmDelete() {
     if (!pendingDelete) return
     const deal = pendingDelete
     setPendingDelete(null)
 
-    const ok = await deleteDeal(deal.id)
-    if (!ok) {
-      setDeleteError(`Could not delete "${deal.name}". You may not have permission, or the request failed.`)
-      return
+    // If a previous undo is still pending, commit it now (don't lose the delete)
+    const prev = pendingUndoRef.current
+    if (prev) {
+      pendingUndoRef.current = null
+      commitDelete(prev)
     }
 
-    setDeletedDeal(deal)
-    setShowUndo(true)
+    setHiddenIds(p => new Set(p).add(deal.id))
+    pendingUndoRef.current = deal
+    setPendingUndo(deal)
   }
 
-  const handleUndo = useCallback(async () => {
-    if (!deletedDeal) return
-    setShowUndo(false)
-
-    // Re-insert the deal
-    const supabase = createClient()
-    const { owner, ...dealData } = deletedDeal
-    await supabase.from('deals').insert(dealData)
-    refetch()
-    setDeletedDeal(null)
-  }, [deletedDeal, refetch])
+  const handleUndo = useCallback(() => {
+    const target = pendingUndoRef.current
+    pendingUndoRef.current = null
+    setPendingUndo(null)
+    if (target) removeHidden(target.id)
+  }, [removeHidden])
 
   const handleUndoDismiss = useCallback(() => {
-    setShowUndo(false)
-    setDeletedDeal(null)
-  }, [])
+    const target = pendingUndoRef.current
+    pendingUndoRef.current = null
+    setPendingUndo(null)
+    if (target) commitDelete(target)
+  }, [commitDelete])
 
   return (
     <div className="flex flex-col h-full">
@@ -117,10 +145,10 @@ export default function BoardPage() {
           </div>
         ) : (
           <KanbanBoard
-            deals={deals}
+            deals={visibleDeals}
             onStageChange={handleStageChange}
             onAddDeal={() => router.push('/deals/new')}
-            onDeleteDeal={isAdmin ? handleDeleteRequest : undefined}
+            onDeleteDeal={handleDeleteRequest}
           />
         )}
       </div>
@@ -135,7 +163,7 @@ export default function BoardPage() {
       >
         <div className="p-6 flex flex-col gap-4">
           <p className="text-white text-sm">
-            Delete <strong>{pendingDelete?.name}</strong>? This action can be undone within 5 seconds.
+            Delete <strong>{pendingDelete?.name}</strong>? You will have 5 seconds to undo.
           </p>
           <div className="flex items-center gap-3 justify-end">
             <Button size="sm" variant="secondary" onClick={() => setPendingDelete(null)}>
@@ -149,10 +177,10 @@ export default function BoardPage() {
         </div>
       </Modal>
 
-      {/* Undo toast */}
+      {/* Undo toast — countdown ticks here; commit fires on dismiss */}
       <UndoToast
-        isVisible={showUndo}
-        message={`"${deletedDeal?.name}" deleted`}
+        isVisible={!!pendingUndo}
+        message={`"${pendingUndo?.name}" deleted`}
         onUndo={handleUndo}
         onDismiss={handleUndoDismiss}
       />

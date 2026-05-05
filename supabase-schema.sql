@@ -185,7 +185,7 @@ CREATE POLICY "deals_update" ON deals
   FOR UPDATE USING (get_my_role() = 'admin' OR owner_id = auth.uid());
 
 CREATE POLICY "deals_delete" ON deals
-  FOR DELETE USING (get_my_role() = 'admin');
+  FOR DELETE USING (auth.uid() IS NOT NULL);
 
 -- ─── DEAL NOTES ───────────────────────────────────────────
 DROP POLICY IF EXISTS "deal_notes_select" ON deal_notes;
